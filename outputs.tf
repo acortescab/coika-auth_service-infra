@@ -10,7 +10,7 @@ output "instance_private_ip" {
 
 output "instance_public_ip" {
   description = "Public IP of the EC2 instance (if assigned)"
-  value       = aws_instance.docker_host.public_ip
+  value       = var.assign_public_ip ? aws_eip.docker_host[0].public_ip : aws_instance.docker_host.public_ip
 }
 
 output "security_group_id" {
