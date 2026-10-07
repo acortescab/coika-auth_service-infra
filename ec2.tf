@@ -36,3 +36,21 @@ resource "aws_instance" "docker_host" {
     var.extra_tags,
   )
 }
+
+# Stable public address: it survives instance replacement, so EC2_HOST / PROD_URL never go stale.
+resource "aws_eip" "docker_host" {
+  count = var.assign_public_ip ? 1 : 0
+
+  domain   = "vpc"
+  instance = aws_instance.docker_host.id
+
+  tags = merge(
+    {
+      Name        = "${var.instance_name}-eip"
+      Environment = var.environment
+      Project     = var.project_name
+      ManagedBy   = "terraform"
+    },
+    var.extra_tags,
+  )
+}
