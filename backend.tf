@@ -10,7 +10,7 @@ terraform {
 
   // Remote state is stored in S3 so the stack can be shared safely.
   backend "s3" {
-    bucket  = "codename-rats-auth-tfstate-s3-290294660813-eu-west-1-an"
+    bucket  = "coika-auth-tfstate-s3-290294660813-eu-west-1-an"
     key     = "terraform.tfstate"
     region  = "eu-west-1"
     encrypt = true

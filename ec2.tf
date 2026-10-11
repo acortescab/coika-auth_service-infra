@@ -1,5 +1,25 @@
 locals {
   selected_subnet_id = var.subnet_id != null ? var.subnet_id : sort(data.aws_subnets.default_vpc_subnets.ids)[0]
+  manage_key_pair    = var.ssh_public_key != null && var.ssh_public_key != "" //the CI passes "" when no key is needed
+  key_name           = local.manage_key_pair ? aws_key_pair.docker_host[0].key_name : var.key_name
+}
+
+# Only created when a public key is provided (DR region); in the primary region the key pair already exists.
+resource "aws_key_pair" "docker_host" {
+  count = local.manage_key_pair ? 1 : 0
+
+  key_name   = var.key_name
+  public_key = var.ssh_public_key
+
+  tags = merge(
+    {
+      Name        = var.key_name
+      Environment = var.environment
+      Project     = var.project_name
+      ManagedBy   = "terraform"
+    },
+    var.extra_tags,
+  )
 }
 
 resource "aws_instance" "docker_host" {
@@ -8,7 +28,7 @@ resource "aws_instance" "docker_host" {
   subnet_id                   = local.selected_subnet_id
   availability_zone           = var.availability_zone
   associate_public_ip_address = var.assign_public_ip
-  key_name                    = var.key_name
+  key_name                    = local.key_name
   vpc_security_group_ids      = [aws_security_group.ec2_host.id]
   iam_instance_profile        = var.enable_iam_instance_profile ? aws_iam_instance_profile.ec2_profile[0].name : null
 
