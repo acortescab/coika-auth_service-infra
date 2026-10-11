@@ -23,7 +23,7 @@ locals {
   ci_boundary_arn  = "arn:aws:iam::${local.ci_account_id}:policy/${local.ci_boundary_name}"
 
   ci_trust_subjects = {
-    plan  = ["${var.github_oidc_subject_prefix}:pull_request", "${var.github_oidc_subject_prefix}:ref:refs/heads/*"]
+    plan  = ["${var.github_oidc_subject_prefix}:environment:${var.github_plan_environment}"]
     apply = ["${var.github_oidc_subject_prefix}:environment:${var.github_apply_environment}"]
   }
 }

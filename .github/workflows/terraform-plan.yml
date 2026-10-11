@@ -29,6 +29,7 @@ jobs:
   validate-and-plan:
     name: "Validate & Plan"
     runs-on: ubuntu-latest
+    environment: plan
     outputs:
       plan_exit_code: ${{ steps.plan.outputs.exitcode }}
       plan_summary: ${{ steps.summary.outputs.summary }}

@@ -139,6 +139,12 @@ variable "github_app_oidc_subjects" {
   ]
 }
 
+variable "github_plan_environment" {
+  description = "GitHub environment whose jobs may assume the read-only plan role (no approvals needed)"
+  type        = string
+  default     = "plan"
+}
+
 variable "github_apply_environment" {
   description = "GitHub environment whose jobs may assume the apply role"
   type        = string
