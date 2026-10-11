@@ -70,8 +70,10 @@ jobs:
         id: plan
         continue-on-error: true
         run: |
-          terraform plan -no-color -out=tfplan -detailed-exitcode
-          plan_exit=$?
+          # The default shell runs with -e: without the `||`, exit code 2 (changes present) aborts
+          # the step before the exit code is saved.
+          plan_exit=0
+          terraform plan -no-color -out=tfplan -detailed-exitcode || plan_exit=$?
           echo "exitcode=$plan_exit" >> "$GITHUB_OUTPUT"
           if [ "$plan_exit" -eq 1 ]; then
             echo "Terraform plan failed."
