@@ -8,7 +8,7 @@ variable "aws_region" {
 variable "instance_name" {
   description = "Name tag for the EC2 instance"
   type        = string
-  default     = "rats-auth-host-dev"
+  default     = "coika-auth_service-instance"
 }
 
 variable "environment" {
@@ -20,7 +20,7 @@ variable "environment" {
 variable "project_name" {
   description = "Project tag value"
   type        = string
-  default     = "codename-rats-auth-service"
+  default     = "coika-auth_service"
 }
 
 variable "instance_type" {
@@ -50,7 +50,7 @@ variable "assign_public_ip" {
 variable "key_name" {
   description = "Optional EC2 key pair name for SSH access"
   type        = string
-  default     = "codename-rats-auth-service-kp"
+  default     = "coika-auth_service-kp"
 }
 
 variable "ssh_allowed_cidr" {
@@ -98,6 +98,63 @@ variable "enable_iam_instance_profile" {
   description = "Create and attach an IAM instance profile"
   type        = bool
   default     = true
+}
+
+variable "ecr_repository_name" {
+  description = "Name of the ECR repository holding the application image"
+  type        = string
+  default     = "coika/auth_service"
+}
+
+variable "primary_region" {
+  description = "Primary region of this stack. In any other region (disaster recovery), IAM names get a region suffix because IAM is global"
+  type        = string
+  default     = "eu-west-1"
+}
+
+variable "ssh_public_key" {
+  description = "Optional SSH public key. If set, Terraform creates the key pair named key_name in this region (needed in a DR region, where the key pair does not exist)"
+  type        = string
+  default     = null
+}
+
+variable "ecr_replication_regions" {
+  description = "Regions to which pushed images of the application repository are replicated (for example: [\"eu-central-1\"]). Empty disables replication"
+  type        = list(string)
+  default     = []
+}
+
+variable "github_oidc_subject_prefix" {
+  description = "OIDC subject prefix of the GitHub repository allowed to assume the CI roles (as emitted in the token sub claim)"
+  type        = string
+  default     = "repo:acortescab@289379741/coika-auth_service-infra@1387194623"
+}
+
+variable "github_app_oidc_subjects" {
+  description = "OIDC subjects (token sub claim) of the application repository allowed to assume the role that pushes images to ECR"
+  type        = list(string)
+  default = [
+    "repo:acortescab@289379741/coika-auth_service@1261187863:ref:refs/heads/main",
+    "repo:acortescab@289379741/coika-auth_service@1261187863:environment:prod",
+  ]
+}
+
+variable "github_apply_environment" {
+  description = "GitHub environment whose jobs may assume the apply role"
+  type        = string
+  default     = "production"
+}
+
+variable "ci_allowed_regions" {
+  description = "Regions where the CI roles may manage EC2 and ECR. Add the DR region here (and apply with admin credentials) before deploying there"
+  type        = list(string)
+  default     = ["eu-west-1"]
+}
+
+variable "tfstate_bucket_name" {
+  description = "S3 bucket holding the Terraform state (must match backend.tf); the CI roles get access to it"
+  type        = string
+  default     = "coika-auth-tfstate-s3-290294660813-eu-west-1-an"
 }
 
 variable "extra_tags" {

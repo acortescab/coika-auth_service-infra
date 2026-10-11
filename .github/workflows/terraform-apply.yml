@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "Region to deploy to (use a non-default region for disaster recovery)"
+        default: "eu-west-1"
+        type: string
 
 permissions:
   contents: read
@@ -12,7 +17,12 @@ permissions:
 
 env:
   TF_VERSION: "1.10.5"
-  AWS_DEFAULT_REGION: "eu-west-1"
+  AWS_DEFAULT_REGION: ${{ inputs.aws_region || 'eu-west-1' }}
+  TF_VAR_aws_region: ${{ inputs.aws_region || 'eu-west-1' }}
+  # Each region has its own state; eu-west-1 keeps the original key.
+  TF_STATE_KEY: ${{ (inputs.aws_region || 'eu-west-1') == 'eu-west-1' && 'terraform.tfstate' || format('regions/{0}/terraform.tfstate', inputs.aws_region) }}
+  # Public key for the EC2 key pair that Terraform creates.
+  TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
 
 jobs:
   terraform-apply:
@@ -47,7 +57,7 @@ jobs:
           audience: sts.amazonaws.com
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -backend-config="key=$TF_STATE_KEY"
 
       - name: Terraform Plan
         id: plan

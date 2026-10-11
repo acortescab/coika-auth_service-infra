@@ -18,6 +18,26 @@ output "security_group_id" {
   value       = aws_security_group.ec2_host.id
 }
 
+output "ecr_repository_url" {
+  description = "URL of the application ECR repository"
+  value       = aws_ecr_repository.app.repository_url
+}
+
+output "ci_plan_role_arn" {
+  description = "Role for the AWS_PLAN_ROLE_TO_ASSUME GitHub secret"
+  value       = aws_iam_role.ci["plan"].arn
+}
+
+output "ci_apply_role_arn" {
+  description = "Role for the AWS_ROLE_TO_ASSUME GitHub secret"
+  value       = aws_iam_role.ci["apply"].arn
+}
+
+output "app_cd_role_arn" {
+  description = "Role for the application repository's GitHub Actions to push images to ECR"
+  value       = aws_iam_role.app_cd.arn
+}
+
 output "iam_role_name" {
   description = "Name of the IAM role attached to the instance profile"
   value       = var.enable_iam_instance_profile ? aws_iam_role.ec2_role[0].name : null
