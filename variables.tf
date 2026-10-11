@@ -119,9 +119,9 @@ variable "ssh_public_key" {
 }
 
 variable "ecr_replication_regions" {
-  description = "Regions to which pushed images of the application repository are replicated (for example: [\"eu-central-1\"]). Empty disables replication"
+  description = "Regions to which pushed images of the application repository are replicated (for example: [\"eu-central-1\"]). Empty disables replication. The DR run must set it to [] (a region cannot replicate to itself)"
   type        = list(string)
-  default     = []
+  default     = ["eu-central-1"]
 }
 
 variable "github_oidc_subject_prefix" {
@@ -154,7 +154,7 @@ variable "github_apply_environment" {
 variable "ci_allowed_regions" {
   description = "Regions where the CI roles may manage EC2 and ECR. Add the DR region here (and apply with admin credentials) before deploying there"
   type        = list(string)
-  default     = ["eu-west-1"]
+  default     = ["eu-west-1", "eu-central-1"]
 }
 
 variable "tfstate_bucket_name" {
