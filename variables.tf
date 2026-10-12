@@ -181,6 +181,30 @@ variable "db_root_volume_size" {
   default     = 30
 }
 
+variable "db_data_volume_size" {
+  description = "Size in GiB of the dedicated encrypted EBS volume for PostgreSQL data"
+  type        = number
+  default     = 20
+}
+
+variable "db_data_volume_type" {
+  description = "EBS volume type of the PostgreSQL data volume"
+  type        = string
+  default     = "gp3"
+}
+
+variable "db_data_kms_key_id" {
+  description = "Optional KMS key ARN to encrypt the data volume. If null, the AWS managed aws/ebs key is used"
+  type        = string
+  default     = null
+}
+
+variable "db_data_mount_path" {
+  description = "Mount point of the data volume on the database host (use it as the PostgreSQL data bind mount in docker compose)"
+  type        = string
+  default     = "/data/postgres"
+}
+
 variable "db_port" {
   description = "PostgreSQL port the API host may reach on the database host"
   type        = number

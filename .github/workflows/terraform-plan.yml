@@ -111,9 +111,14 @@ jobs:
               `**Plan Exit Code**: \`${exitCode}\``,
               `**Plan Outcome**: ${summary}`,
               '',
+              '<details>',
+              '<summary>Show full plan</summary>',
+              '',
               '```hcl',
               fullPlan,
-              '```'
+              '```',
+              '',
+              '</details>'
             ].join('\n');
 
             github.rest.issues.createComment({
