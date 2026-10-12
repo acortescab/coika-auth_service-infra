@@ -40,6 +40,15 @@ terraform validate
 terraform plan -var-file=terraform.tfvars
 ```
 
+## Database snapshots bucket and DR
+
+- The snapshots bucket is replicated to `db_snapshots_replication_region` (default `eu-central-1`), only when applying in the primary region. Set it to `""` to disable.
+- Replication is bidirectional: snapshots uploaded to the DR bucket during a failover are replicated back to the primary bucket. Both replication rules are managed by the primary stack.
+- Failover: the replica bucket has the name the DR stack gives its own bucket. Before the first DR apply, adopt it:
+  `terraform import aws_s3_bucket.db_snapshots <bucket-name>` (see the `db_snapshots_replica_bucket` output of the primary stack). Do not destroy the DR stack afterwards without removing that bucket from its state first (`terraform state rm`), or the shared bucket is deleted.
+- Deletes in the primary bucket are not replicated, so the DR copy survives accidental deletion (it still expires after `db_snapshots_retention_days`).
+- Replication only copies objects uploaded after it is enabled.
+
 ## Notes
 
 - If `subnet_id` is `null`, Terraform uses the first subnet from the default VPC.

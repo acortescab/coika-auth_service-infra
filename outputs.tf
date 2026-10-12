@@ -38,6 +38,11 @@ output "db_snapshots_bucket" {
   value       = aws_s3_bucket.db_snapshots.bucket
 }
 
+output "db_snapshots_replica_bucket" {
+  description = "Name of the DR replica bucket (null when replication is disabled)"
+  value       = local.db_snapshots_replication_enabled ? aws_s3_bucket.db_snapshots_replica[0].bucket : null
+}
+
 output "private_subnet_id" {
   description = "ID of the private subnet hosting the database"
   value       = aws_subnet.private.id

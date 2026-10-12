@@ -201,18 +201,21 @@ data "aws_iam_policy_document" "ci_apply_core" {
       "s3:Get*Configuration",
       "s3:Put*Configuration",
     ]
-    resources = ["arn:aws:s3:::${local.db_snapshots_bucket_name}"]
+    resources = [
+      "arn:aws:s3:::${local.db_snapshots_bucket_name}",
+      "arn:aws:s3:::${local.db_snapshots_replica_bucket_name}",
+    ]
   }
 
   statement {
-    sid       = "IamPassRoleToEc2"
+    sid       = "IamPassRoleToEc2AndS3"
     actions   = ["iam:PassRole"]
     resources = ["arn:aws:iam::${local.ci_account_id}:role/${var.project_name}-*"]
 
     condition {
       test     = "StringEquals"
       variable = "iam:PassedToService"
-      values   = ["ec2.amazonaws.com"]
+      values   = ["ec2.amazonaws.com", "s3.amazonaws.com"]
     }
   }
 
@@ -285,6 +288,26 @@ data "aws_iam_policy_document" "ci_boundary" {
     sid       = "DbSnapshotsRuntime"
     actions   = ["s3:PutObject", "s3:GetObject", "s3:AbortMultipartUpload", "s3:ListBucket", "s3:GetBucketLocation"]
     resources = ["arn:aws:s3:::${local.db_snapshots_bucket_name}", "arn:aws:s3:::${local.db_snapshots_bucket_name}/*"]
+  }
+
+  statement {
+    sid = "DbSnapshotsReplication"
+    actions = [
+      "s3:GetReplicationConfiguration",
+      "s3:GetObjectVersionForReplication",
+      "s3:GetObjectVersionAcl",
+      "s3:GetObjectVersionTagging",
+      "s3:ListBucket",
+      "s3:ReplicateObject",
+      "s3:ReplicateDelete",
+      "s3:ReplicateTags",
+    ]
+    resources = [
+      "arn:aws:s3:::${local.db_snapshots_bucket_name}",
+      "arn:aws:s3:::${local.db_snapshots_bucket_name}/*",
+      "arn:aws:s3:::${local.db_snapshots_replica_bucket_name}",
+      "arn:aws:s3:::${local.db_snapshots_replica_bucket_name}/*",
+    ]
   }
 
   statement {
@@ -430,6 +453,7 @@ data "aws_iam_policy_document" "ci_plan" {
     actions = ["s3:ListBucket", "s3:GetBucket*", "s3:Get*Configuration"]
     resources = [
       "arn:aws:s3:::${local.db_snapshots_bucket_name}",
+      "arn:aws:s3:::${local.db_snapshots_replica_bucket_name}",
     ]
   }
 

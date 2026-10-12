@@ -240,3 +240,8 @@ variable "extra_tags" {
   type        = map(string)
   default     = {}
 }
+variable "db_snapshots_replication_region" {
+  description = "DR region the database snapshots bucket is replicated to. Set to \"\" to disable. Replication is only configured in the primary region: in the DR region itself the bucket is the replica (import it, see README)"
+  type        = string
+  default     = "eu-central-1"
+}
