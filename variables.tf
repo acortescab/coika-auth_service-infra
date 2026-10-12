@@ -205,6 +205,12 @@ variable "db_data_mount_path" {
   default     = "/data/postgres"
 }
 
+variable "db_backup_cron" {
+  description = "Cron schedule (5 fields, UTC) of the pg_dump backup to the snapshots bucket"
+  type        = string
+  default     = "0 */6 * * *"
+}
+
 variable "db_snapshots_retention_days" {
   description = "Days after which database snapshots (and old versions) in the S3 bucket expire"
   type        = number

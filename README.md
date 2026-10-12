@@ -54,7 +54,8 @@ terraform plan -var-file=terraform.tfvars
 - If `subnet_id` is `null`, Terraform uses the first subnet from the default VPC.
 - SSH is restricted to `ssh_allowed_cidr`; avoid broad CIDRs.
 - Docker is installed from Docker's official Ubuntu apt repository.
-- This stack prepares the host only; it does not deploy the application containers.
+- The API host is prepared only; the application container is deployed by the application's CD. The database host
+  is complete: its bootstrap also starts PostgreSQL and the S3 backup cron (see `db/README.md`).
 
 ## Secrets in SSM Parameter Store
 

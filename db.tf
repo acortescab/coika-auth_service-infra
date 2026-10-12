@@ -1,5 +1,5 @@
 // PostgreSQL host: same Docker-ready Ubuntu image, but in the private subnet with no public IP.
-// Like the API host, Terraform only prepares the machine; PostgreSQL itself runs with docker compose.
+// The bootstrap installs the db/ folder and starts PostgreSQL (docker compose, under systemd) on its own.
 // Reach it with SSM Session Manager, or over SSH hopping through the API host.
 resource "aws_instance" "database" {
   ami                         = data.aws_ami.ubuntu_lts.id
@@ -21,16 +21,25 @@ resource "aws_instance" "database" {
     http_tokens   = "required"
   }
 
-  // Shared Docker bootstrap, followed by formatting and mounting the data volume.
+  // Shared Docker bootstrap, then the data volume, then PostgreSQL itself (db/ folder + systemd + backup cron).
   user_data = join("\n", [
     file("${path.module}/user_data.sh"),
     templatefile("${path.module}/db_data_volume.sh", {
       volume_id_nodash = replace(aws_ebs_volume.db_data.id, "-", "")
       mount_path       = var.db_data_mount_path
     }),
+    templatefile("${path.module}/db_bootstrap.sh", {
+      // gzip keeps user_data well under the 16 KB limit
+      files         = { for f in fileset("${path.module}/db", "{docker-compose.yml,*.sh,settings.env.example}") : f => base64gzip(file("${path.module}/db/${f}")) }
+      backup_bucket = aws_s3_bucket.db_snapshots.bucket
+      backup_cron   = var.db_backup_cron
+      ssm_prefix    = local.ssm_prefix
+    }),
   ])
 
   // The instance holds the data: a newer AMI or an edited bootstrap script must never replace it.
+  // To apply a changed bootstrap, replace the host on purpose: the data volume is separate and survives
+  // (terraform apply -replace=aws_instance.database).
   lifecycle {
     ignore_changes = [ami, user_data]
   }
