@@ -132,11 +132,44 @@ resource "aws_iam_instance_profile" "db_profile" {
 // Secrets and app configuration live in SSM Parameter Store (SecureString), created outside
 // Terraform so their values never reach the state or user_data. The instances read them at
 // runtime with their role. Layout:
-//   <prefix>/db/*   PostgreSQL user, password, database name (read by both hosts)
+//   <prefix>/db/*   PostgreSQL user, password, database name (read by both hosts) and, created by
+//                   Terraform, DB_HOST / DB_PORT
 //   <prefix>/app/*  API environment variables (read by the API host only)
 locals {
   ssm_prefix   = coalesce(var.ssm_parameter_prefix, "/${var.project_name}/${var.environment}")
   ssm_arn_base = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_prefix}"
+}
+
+// Where the database listens. Not a secret, so Terraform owns it (it follows the instance if it is
+// ever replaced); the API host combines it with db/POSTGRES_* to build its DATABASE_URL_* at deploy time.
+resource "aws_ssm_parameter" "db_host" {
+  name  = "${local.ssm_prefix}/db/DB_HOST"
+  type  = "String"
+  value = aws_instance.database.private_ip
+
+  tags = merge(
+    {
+      Environment = var.environment
+      Project     = var.project_name
+      ManagedBy   = "terraform"
+    },
+    var.extra_tags,
+  )
+}
+
+resource "aws_ssm_parameter" "db_port" {
+  name  = "${local.ssm_prefix}/db/DB_PORT"
+  type  = "String"
+  value = tostring(var.db_port)
+
+  tags = merge(
+    {
+      Environment = var.environment
+      Project     = var.project_name
+      ManagedBy   = "terraform"
+    },
+    var.extra_tags,
+  )
 }
 
 data "aws_iam_policy_document" "ssm_read_db" {

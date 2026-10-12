@@ -65,8 +65,15 @@ P=/coika/auth_service   # output ssm_parameter_prefix
 aws ssm put-parameter --type SecureString --name $P/db/POSTGRES_DB       --value '...'
 aws ssm put-parameter --type SecureString --name $P/db/POSTGRES_USER     --value '...'
 aws ssm put-parameter --type SecureString --name $P/db/POSTGRES_PASSWORD --value '...'
-aws ssm put-parameter --type SecureString --name $P/app/JWT_PRIVATE_KEY  --value '...'
+aws ssm put-parameter --type SecureString --name $P/app/JWT_PRIVATE_KEY  --value '...'   # PEM, becomes SECRET_KEY
+# optional; without it telemetry stays disabled
+aws ssm put-parameter --type SecureString --name $P/app/OTEL_EXPORTER_OTLP_ENDPOINT --value 'http://<host>:4317'
 ```
+
+Terraform itself creates the non-secret `$P/db/DB_HOST` (private IP of the database host) and `$P/db/DB_PORT`.
+`scripts/deploy.sh` and `scripts/rollback.sh` of the application repository read `app/*` and `db/*` with the
+API host's role and build `DATABASE_URL_WRITER` / `DATABASE_URL_READER` from `POSTGRES_USER`, `POSTGRES_PASSWORD`,
+`POSTGRES_DB`, `DB_HOST` and `DB_PORT` (the password is URL-encoded), so the credentials are stored only once.
 
 On the instance, read them with its role (no credentials needed):
 
