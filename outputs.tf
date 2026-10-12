@@ -18,6 +18,26 @@ output "security_group_id" {
   value       = aws_security_group.ec2_host.id
 }
 
+output "db_instance_id" {
+  description = "ID of the database EC2 instance"
+  value       = aws_instance.database.id
+}
+
+output "db_private_ip" {
+  description = "Private IP of the database host (use it as the PostgreSQL host in the API configuration)"
+  value       = aws_instance.database.private_ip
+}
+
+output "db_security_group_id" {
+  description = "ID of the security group attached to the database host"
+  value       = aws_security_group.database.id
+}
+
+output "private_subnet_id" {
+  description = "ID of the private subnet hosting the database"
+  value       = aws_subnet.private.id
+}
+
 output "ecr_repository_url" {
   description = "URL of the application ECR repository"
   value       = aws_ecr_repository.app.repository_url

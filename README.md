@@ -8,6 +8,8 @@ This folder provisions one Ubuntu EC2 host prepared to run Docker workloads with
 - 1 dedicated security group (SSH + configurable app ports)
 - Optional IAM role and instance profile (enabled by default)
 - Encrypted root EBS volume (`gp3` by default)
+- 1 database EC2 instance (PostgreSQL host) in a private subnet with no public IP; only the API host's security group can reach it (port `db_port` and SSH)
+- A private subnet inside the default VPC, with its own route table and a NAT gateway (`enable_nat_gateway`) for outbound internet
 - Cloud-init style host bootstrap via `user_data.sh` for Docker Engine + Compose plugin
 
 ## Prerequisites
