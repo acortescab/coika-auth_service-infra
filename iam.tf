@@ -128,3 +128,53 @@ resource "aws_iam_instance_profile" "db_profile" {
     var.extra_tags,
   )
 }
+
+// Secrets and app configuration live in SSM Parameter Store (SecureString), created outside
+// Terraform so their values never reach the state or user_data. The instances read them at
+// runtime with their role. Layout:
+//   <prefix>/db/*   PostgreSQL user, password, database name (read by both hosts)
+//   <prefix>/app/*  API environment variables (read by the API host only)
+locals {
+  ssm_prefix   = coalesce(var.ssm_parameter_prefix, "/${var.project_name}/${var.environment}")
+  ssm_arn_base = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_prefix}"
+}
+
+data "aws_iam_policy_document" "ssm_read_db" {
+  statement {
+    sid     = "ReadDbParameters"
+    actions = ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"]
+    resources = [
+      "${local.ssm_arn_base}/db",
+      "${local.ssm_arn_base}/db/*",
+    ]
+  }
+}
+
+data "aws_iam_policy_document" "ssm_read_api" {
+  source_policy_documents = [data.aws_iam_policy_document.ssm_read_db.json]
+
+  statement {
+    sid     = "ReadAppParameters"
+    actions = ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"]
+    resources = [
+      "${local.ssm_arn_base}/app",
+      "${local.ssm_arn_base}/app/*",
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "api_ssm_parameters" {
+  count = var.enable_iam_instance_profile ? 1 : 0
+
+  name   = "ssm-parameters-read"
+  role   = aws_iam_role.ec2_role[0].id
+  policy = data.aws_iam_policy_document.ssm_read_api.json
+}
+
+resource "aws_iam_role_policy" "db_ssm_parameters" {
+  count = var.enable_iam_instance_profile ? 1 : 0
+
+  name   = "ssm-parameters-read"
+  role   = aws_iam_role.db_role[0].id
+  policy = data.aws_iam_policy_document.ssm_read_db.json
+}

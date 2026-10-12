@@ -77,3 +77,8 @@ output "iam_instance_profile_name" {
   description = "Name of the IAM instance profile"
   value       = var.enable_iam_instance_profile ? aws_iam_instance_profile.ec2_profile[0].name : null
 }
+
+output "ssm_parameter_prefix" {
+  description = "SSM path prefix where the hosts read their secrets and configuration"
+  value       = local.ssm_prefix
+}

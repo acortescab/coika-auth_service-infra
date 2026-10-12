@@ -245,3 +245,9 @@ variable "db_snapshots_replication_region" {
   type        = string
   default     = "eu-central-1"
 }
+
+variable "ssm_parameter_prefix" {
+  description = "SSM Parameter Store path prefix the EC2 roles may read (db/* for both hosts, app/* for the API host). If null, /<project_name>/<environment> is used"
+  type        = string
+  default     = "/coika/auth_service"
+}

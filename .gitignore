@@ -16,3 +16,6 @@ terraform.rc
 
 # Local editor/system files
 .DS_Store
+
+# Real DB host config (secrets)
+db/.env

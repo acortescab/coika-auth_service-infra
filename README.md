@@ -55,3 +55,25 @@ terraform plan -var-file=terraform.tfvars
 - SSH is restricted to `ssh_allowed_cidr`; avoid broad CIDRs.
 - Docker is installed from Docker's official Ubuntu apt repository.
 - This stack prepares the host only; it does not deploy the application containers.
+
+## Secrets in SSM Parameter Store
+
+Terraform does not create the values (so they never land in the state or `user_data`); it only grants the EC2 roles read access. Create them once per region as `SecureString`:
+
+```bash
+P=/coika/auth_service   # output ssm_parameter_prefix
+aws ssm put-parameter --type SecureString --name $P/db/POSTGRES_DB       --value '...'
+aws ssm put-parameter --type SecureString --name $P/db/POSTGRES_USER     --value '...'
+aws ssm put-parameter --type SecureString --name $P/db/POSTGRES_PASSWORD --value '...'
+aws ssm put-parameter --type SecureString --name $P/app/JWT_PRIVATE_KEY  --value '...'
+```
+
+On the instance, read them with its role (no credentials needed):
+
+```bash
+aws ssm get-parameters-by-path --path $P/db --with-decryption \
+  --query 'Parameters[].[Name,Value]' --output text
+```
+
+- The database host can read `db/*`; the API host can read `db/*` and `app/*`.
+- Parameters are regional: the DR region needs its own copy.

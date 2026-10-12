@@ -15,6 +15,16 @@ if ! blkid "$DATA_DEVICE" > /dev/null 2>&1; then
 fi
 
 mkdir -p "${mount_path}"
+# Immutable while nothing is mounted: if the volume ever fails to mount, writing to the bare
+# directory on the root disk fails instead of silently creating an empty database there.
+mountpoint -q "${mount_path}" || chattr +i "${mount_path}"
+
+# Docker (and therefore the postgres container) only starts once the data volume is mounted.
+mkdir -p /etc/systemd/system/docker.service.d
+printf '[Unit]\nRequiresMountsFor=%s\n' "${mount_path}" \
+  > /etc/systemd/system/docker.service.d/data-volume.conf
+systemctl daemon-reload
+
 DATA_UUID="$(blkid -s UUID -o value "$DATA_DEVICE")"
 grep -q "$DATA_UUID" /etc/fstab || \
   echo "UUID=$DATA_UUID ${mount_path} ext4 defaults,nofail 0 2" >> /etc/fstab
