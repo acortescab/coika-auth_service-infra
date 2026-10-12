@@ -21,13 +21,9 @@ resource "aws_instance" "database" {
     http_tokens   = "required"
   }
 
-  // Shared Docker bootstrap, then the data volume, then PostgreSQL itself (db/ folder + systemd + backup cron).
+  // Shared Docker bootstrap, then PostgreSQL itself (db/ folder + systemd + backup cron).
   user_data = join("\n", [
     file("${path.module}/user_data.sh"),
-    templatefile("${path.module}/db_data_volume.sh", {
-      volume_id_nodash = replace(aws_ebs_volume.db_data.id, "-", "")
-      mount_path       = var.db_data_mount_path
-    }),
     templatefile("${path.module}/db_bootstrap.sh", {
       // gzip keeps user_data well under the 16 KB limit
       files         = { for f in fileset("${path.module}/db", "{docker-compose.yml,*.sh,settings.env.example}") : f => base64gzip(file("${path.module}/db/${f}")) }
@@ -37,9 +33,9 @@ resource "aws_instance" "database" {
     }),
   ])
 
-  // The instance holds the data: a newer AMI or an edited bootstrap script must never replace it.
-  // To apply a changed bootstrap, replace the host on purpose: the data volume is separate and survives
-  // (terraform apply -replace=aws_instance.database).
+  // The data lives on the root disk, which is deleted with the instance: a newer AMI or an edited
+  // bootstrap script must never replace it. Replacing the host on purpose
+  // (terraform apply -replace=aws_instance.database) means restoring the data from the S3 dumps.
   lifecycle {
     ignore_changes = [ami, user_data]
   }
@@ -56,30 +52,4 @@ resource "aws_instance" "database" {
     },
     var.extra_tags,
   )
-}
-
-// PostgreSQL data lives on its own encrypted volume, independent from the root disk.
-resource "aws_ebs_volume" "db_data" {
-  availability_zone = aws_subnet.private.availability_zone
-  size              = var.db_data_volume_size
-  type              = var.db_data_volume_type
-  encrypted         = true
-  kms_key_id        = var.db_data_kms_key_id
-
-  tags = merge(
-    {
-      Name        = "${var.db_instance_name}-data"
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
-    },
-    var.extra_tags,
-  )
-}
-
-resource "aws_volume_attachment" "db_data" {
-  device_name                    = "/dev/sdf"
-  volume_id                      = aws_ebs_volume.db_data.id
-  instance_id                    = aws_instance.database.id
-  stop_instance_before_detaching = true
 }

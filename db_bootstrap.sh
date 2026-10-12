@@ -1,5 +1,5 @@
 
-# --- PostgreSQL service and backups (appended to user_data.sh and db_data_volume.sh) ---
+# --- PostgreSQL service and backups (appended to user_data.sh) ---
 # Installs the db/ folder of this repository on the host and keeps PostgreSQL running with systemd,
 # so a fresh (or replaced) database host comes up by itself. Nothing secret lives here: the credentials
 # are read from SSM Parameter Store by db/start.sh with the instance role.

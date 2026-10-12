@@ -176,33 +176,9 @@ variable "db_instance_type" {
 }
 
 variable "db_root_volume_size" {
-  description = "Root EBS volume size in GiB for the database host (PostgreSQL data lives here)"
+  description = "Root EBS volume size in GiB for the database host (OS, Docker and the PostgreSQL data live here)"
   type        = number
-  default     = 30
-}
-
-variable "db_data_volume_size" {
-  description = "Size in GiB of the dedicated encrypted EBS volume for PostgreSQL data"
-  type        = number
-  default     = 20
-}
-
-variable "db_data_volume_type" {
-  description = "EBS volume type of the PostgreSQL data volume"
-  type        = string
-  default     = "gp3"
-}
-
-variable "db_data_kms_key_id" {
-  description = "Optional KMS key ARN to encrypt the data volume. If null, the AWS managed aws/ebs key is used"
-  type        = string
-  default     = null
-}
-
-variable "db_data_mount_path" {
-  description = "Mount point of the data volume on the database host (use it as the PostgreSQL data bind mount in docker compose)"
-  type        = string
-  default     = "/data/postgres"
+  default     = 50
 }
 
 variable "db_backup_cron" {

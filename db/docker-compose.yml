@@ -8,8 +8,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:?run ./start.sh}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run ./start.sh}
       POSTGRES_DB: ${POSTGRES_DB:?run ./start.sh}
-      # The root of the ext4 data volume contains lost+found, which initdb refuses; use a subdirectory.
-      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       # Only the private IP (set by start.sh); the database security group (db_port) limits it to the API host.
       - "${DB_BIND_IP:?run ./start.sh}:5432:5432"
@@ -24,5 +22,8 @@ services:
         max-size: "10m"
         max-file: "3"
     volumes:
-      # db_data_mount_path: the dedicated EBS volume mounted by db_data_volume.sh
-      - /data/postgres:/var/lib/postgresql/data
+      # Docker volume on the host's (encrypted) root disk; `docker compose down` keeps it, `down -v` deletes it.
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

@@ -1,8 +1,8 @@
 # Database host (PostgreSQL + S3 backups)
 
-Terraform sets the whole host up (`db.tf`, `db_bootstrap.sh`): Docker, AWS CLI, the data EBS volume mounted
-at `/data/postgres`, this folder installed in `/opt/db`, PostgreSQL started by the `postgres-db` systemd
-service (`docker compose`) and the backup cron. The instance role reads the credentials from SSM Parameter
+Terraform sets the whole host up (`db.tf`, `db_bootstrap.sh`): Docker, AWS CLI, this folder installed in
+`/opt/db`, PostgreSQL started by the `postgres-db` systemd service (`docker compose`, data in the `pgdata`
+Docker volume on the encrypted root disk) and the backup cron. The instance role reads the credentials from SSM Parameter
 Store and writes to the snapshots bucket, so no secret or AWS credential is stored on the host.
 
 ## Prerequisites
@@ -24,8 +24,7 @@ systemctl status postgres-db      # on the host: "active (exited)" once PostgreS
 docker compose -f /opt/db/docker-compose.yml ps    # db should become "healthy"
 ```
 
-`start.sh` refuses to start if `/data/postgres` is not a mount point, loads the credentials from SSM and
-publishes port 5432 only on the host's private IP. To recreate the container run `sudo systemctl restart
+`start.sh` loads the credentials from SSM and publishes port 5432 only on the host's private IP. To recreate the container run `sudo systemctl restart
 postgres-db` (or `/opt/db/start.sh`), not a bare `docker compose up`. After a reboot the service runs again.
 
 The API host builds its `DATABASE_URL_*` from the same SSM parameters and the `db/DB_HOST` Terraform publishes,
@@ -34,14 +33,16 @@ so nothing else has to be configured.
 ### Changing the scripts in this folder
 
 The bootstrap only runs when the instance is created (`user_data` is ignored on purpose, so an edit never
-replaces the host that holds the data). To apply a change, replace the host: the data volume is separate,
-is re-attached to the new instance and is not reformatted.
-
-```bash
-terraform apply -replace=aws_instance.database
-```
+replaces the host that holds the data). The data lives on the root disk, so replacing the host
+(`terraform apply -replace=aws_instance.database`) deletes it: take a backup first (`/opt/db/backup.sh`) and
+restore it on the new host (see Restore).
 
 For a quick fix without replacing it, edit the file in `/opt/db` on the host.
+
+### Durability
+
+The data is only on the instance's root disk. If the instance is terminated or replaced, the data is gone;
+the S3 dumps (every 6 hours by default) are the recovery path, so you can lose up to that interval of data.
 
 ## Backups
 
