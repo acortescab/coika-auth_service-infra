@@ -163,8 +163,91 @@ variable "tfstate_bucket_name" {
   default     = "coika-auth-tfstate-s3-290294660813-eu-west-1-an"
 }
 
+variable "db_instance_name" {
+  description = "Name tag for the database EC2 instance"
+  type        = string
+  default     = "coika-auth_service-db-instance"
+}
+
+variable "db_instance_type" {
+  description = "EC2 instance type for the database host"
+  type        = string
+  default     = "t3.micro"
+}
+
+variable "db_root_volume_size" {
+  description = "Root EBS volume size in GiB for the database host (PostgreSQL data lives here)"
+  type        = number
+  default     = 30
+}
+
+variable "db_data_volume_size" {
+  description = "Size in GiB of the dedicated encrypted EBS volume for PostgreSQL data"
+  type        = number
+  default     = 20
+}
+
+variable "db_data_volume_type" {
+  description = "EBS volume type of the PostgreSQL data volume"
+  type        = string
+  default     = "gp3"
+}
+
+variable "db_data_kms_key_id" {
+  description = "Optional KMS key ARN to encrypt the data volume. If null, the AWS managed aws/ebs key is used"
+  type        = string
+  default     = null
+}
+
+variable "db_data_mount_path" {
+  description = "Mount point of the data volume on the database host (use it as the PostgreSQL data bind mount in docker compose)"
+  type        = string
+  default     = "/data/postgres"
+}
+
+variable "db_snapshots_retention_days" {
+  description = "Days after which database snapshots (and old versions) in the S3 bucket expire"
+  type        = number
+  default     = 30
+}
+
+variable "db_port" {
+  description = "PostgreSQL port the API host may reach on the database host"
+  type        = number
+  default     = 5432
+}
+
+variable "db_availability_zone" {
+  description = "Availability zone of the private subnet. If null, the AZ of the public (API) subnet is used"
+  type        = string
+  default     = null
+}
+
+variable "private_subnet_cidr" {
+  description = "CIDR of the private subnet created inside the default VPC; must not overlap existing subnets"
+  type        = string
+  default     = "172.31.128.0/24"
+}
+
+variable "enable_nat_gateway" {
+  description = "Create a NAT gateway so the private subnet has outbound internet (needed to install Docker and pull images). Costs roughly 32 USD/month plus data"
+  type        = bool
+  default     = true
+}
+
 variable "extra_tags" {
   description = "Additional tags to merge into all resources"
   type        = map(string)
   default     = {}
+}
+variable "db_snapshots_replication_region" {
+  description = "DR region the database snapshots bucket is replicated to. Set to \"\" to disable. Replication is only configured in the primary region: in the DR region itself the bucket is the replica (import it, see README)"
+  type        = string
+  default     = "eu-central-1"
+}
+
+variable "ssm_parameter_prefix" {
+  description = "SSM Parameter Store path prefix the EC2 roles may read (db/* for both hosts, app/* for the API host). If null, /<project_name>/<environment> is used"
+  type        = string
+  default     = "/coika/auth_service"
 }

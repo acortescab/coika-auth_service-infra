@@ -84,6 +84,10 @@ data "aws_iam_policy_document" "ci_apply_core" {
       "ec2:MonitorInstances",
       "ec2:UnmonitorInstances",
       "ec2:ModifyVolume",
+      "ec2:CreateVolume",
+      "ec2:DeleteVolume",
+      "ec2:AttachVolume",
+      "ec2:DetachVolume",
       "ec2:AssociateIamInstanceProfile",
       "ec2:ReplaceIamInstanceProfileAssociation",
       "ec2:DisassociateIamInstanceProfile",
@@ -104,6 +108,18 @@ data "aws_iam_policy_document" "ci_apply_core" {
       "ec2:DisassociateAddress",
       "ec2:ImportKeyPair",
       "ec2:DeleteKeyPair",
+      "ec2:CreateSubnet",
+      "ec2:DeleteSubnet",
+      "ec2:ModifySubnetAttribute",
+      "ec2:CreateRouteTable",
+      "ec2:DeleteRouteTable",
+      "ec2:CreateRoute",
+      "ec2:DeleteRoute",
+      "ec2:ReplaceRoute",
+      "ec2:AssociateRouteTable",
+      "ec2:DisassociateRouteTable",
+      "ec2:CreateNatGateway",
+      "ec2:DeleteNatGateway",
     ]
     resources = ["*"]
 
@@ -174,14 +190,52 @@ data "aws_iam_policy_document" "ci_apply_core" {
   }
 
   statement {
-    sid       = "IamPassRoleToEc2"
+    sid = "DbSnapshotsBucket"
+    actions = [
+      "s3:CreateBucket",
+      "s3:DeleteBucket",
+      "s3:ListBucket",
+      "s3:GetBucket*",
+      "s3:PutBucket*",
+      "s3:DeleteBucketPolicy",
+      "s3:Get*Configuration",
+      "s3:Put*Configuration",
+    ]
+    resources = [
+      "arn:aws:s3:::${local.db_snapshots_bucket_name}",
+      "arn:aws:s3:::${local.db_snapshots_replica_bucket_name}",
+    ]
+  }
+
+  // The non-secret parameters Terraform creates (DB_HOST, DB_PORT); secrets are created by hand.
+  statement {
+    sid = "SsmParameters"
+    actions = [
+      "ssm:PutParameter",
+      "ssm:DeleteParameter",
+      "ssm:GetParameter",
+      "ssm:AddTagsToResource",
+      "ssm:RemoveTagsFromResource",
+      "ssm:ListTagsForResource",
+    ]
+    resources = ["${local.ssm_arn_base}/*"]
+  }
+
+  statement {
+    sid       = "SsmDescribeParameters"
+    actions   = ["ssm:DescribeParameters"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid       = "IamPassRoleToEc2AndS3"
     actions   = ["iam:PassRole"]
     resources = ["arn:aws:iam::${local.ci_account_id}:role/${var.project_name}-*"]
 
     condition {
       test     = "StringEquals"
       variable = "iam:PassedToService"
-      values   = ["ec2.amazonaws.com"]
+      values   = ["ec2.amazonaws.com", "s3.amazonaws.com"]
     }
   }
 
@@ -239,30 +293,61 @@ data "aws_iam_policy_document" "ci_apply_core" {
   }
 }
 
-// The cap: the apply permissions, plus what the other roles created here need
-// (the plan policy, SSM and ECR pull for the instance role), plus guard rails.
+// The cap. Managed policies are limited to 6144 characters, so it uses wildcards by service
+// instead of repeating the apply policy action by action: it only has to be an upper bound.
+// The precise permissions are in ci_apply_core (the apply role gets the intersection of both),
+// and the guard rails below (Deny statements) are what prevents escalation.
 data "aws_iam_policy_document" "ci_boundary" {
-  source_policy_documents = [data.aws_iam_policy_document.ci_apply_core.json]
+  statement {
+    sid       = "TerraformState"
+    actions   = ["s3:ListBucket", "s3:GetObject", "s3:PutObject"]
+    resources = ["arn:aws:s3:::${var.tfstate_bucket_name}", "arn:aws:s3:::${var.tfstate_bucket_name}/*"]
+  }
 
   statement {
-    sid       = "InstanceRuntime"
-    actions   = ["ssm:*", "ssmmessages:*", "ec2messages:*", "ecr:BatchGetImage", "ecr:BatchCheckLayerAvailability"]
+    sid = "Ec2"
+    actions = [
+      "ec2:Describe*",
+      "ec2:*Instance*",
+      "ec2:*Volume*",
+      "ec2:*SecurityGroup*",
+      "ec2:*Address*",
+      "ec2:*KeyPair*",
+      "ec2:*Subnet*",
+      "ec2:*Route*",
+      "ec2:*NatGateway*",
+      "ec2:*Tags",
+    ]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = var.ci_allowed_regions
+    }
+  }
+
+  statement {
+    sid       = "IamRolesAndProfiles"
+    actions   = ["iam:*Role*", "iam:*InstanceProfile*"]
+    resources = ["arn:aws:iam::${local.ci_account_id}:role/${var.project_name}-*", "arn:aws:iam::${local.ci_account_id}:instance-profile/${var.instance_name}-*"]
+  }
+
+  statement {
+    sid       = "IamReadAndServiceLinkedRole"
+    actions   = ["iam:Get*", "iam:List*", "iam:CreateServiceLinkedRole"]
     resources = ["*"]
   }
 
   statement {
-    sid = "AppCiEcrPush"
-    actions = [
-      "ecr:GetAuthorizationToken",
-      "ecr:BatchCheckLayerAvailability",
-      "ecr:BatchGetImage",
-      "ecr:CompleteLayerUpload",
-      "ecr:DescribeImages",
-      "ecr:GetDownloadUrlForLayer",
-      "ecr:InitiateLayerUpload",
-      "ecr:PutImage",
-      "ecr:UploadLayerPart",
-    ]
+    sid       = "Buckets"
+    actions   = ["s3:*"]
+    resources = ["arn:aws:s3:::${replace(var.project_name, "_", "-")}-*"]
+  }
+
+  statement {
+    sid       = "InstanceAndAppRuntime"
+    actions   = ["ecr:*", "ssm:*", "ssmmessages:*", "ec2messages:*"]
     resources = ["*"]
   }
 
@@ -386,6 +471,27 @@ data "aws_iam_policy_document" "ci_plan" {
     sid       = "IamReadBoundaryAndOidcProviderPlan"
     actions   = ["iam:GetPolicy", "iam:GetPolicyVersion", "iam:ListPolicyVersions", "iam:GetOpenIDConnectProvider", "iam:ListOpenIDConnectProviders"]
     resources = ["*"]
+  }
+
+  statement {
+    sid       = "SsmParametersRead"
+    actions   = ["ssm:GetParameter", "ssm:ListTagsForResource"]
+    resources = ["${local.ssm_arn_base}/*"]
+  }
+
+  statement {
+    sid       = "SsmDescribeParametersRead"
+    actions   = ["ssm:DescribeParameters"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid     = "DbSnapshotsBucketRead"
+    actions = ["s3:ListBucket", "s3:GetBucket*", "s3:Get*Configuration"]
+    resources = [
+      "arn:aws:s3:::${local.db_snapshots_bucket_name}",
+      "arn:aws:s3:::${local.db_snapshots_replica_bucket_name}",
+    ]
   }
 
   statement {
