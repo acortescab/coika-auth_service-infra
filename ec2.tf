@@ -36,6 +36,16 @@ resource "aws_instance" "docker_host" {
     encrypted   = true
     volume_size = var.root_volume_size
     volume_type = var.root_volume_type
+
+    tags = merge(
+      {
+        Name        = "${var.instance_name}-so"
+        Environment = var.environment
+        Project     = var.project_name
+        ManagedBy   = "terraform"
+      },
+      var.extra_tags,
+    )
   }
 
   metadata_options {

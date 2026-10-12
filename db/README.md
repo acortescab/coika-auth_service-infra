@@ -1,9 +1,9 @@
 # Database host (PostgreSQL + S3 backups)
 
-Terraform only prepares the host (`db.tf`): Docker, AWS CLI, and the data EBS volume mounted at
-`/data/postgres`. PostgreSQL itself runs from this folder with `docker compose`. The instance role
-reads the credentials from SSM Parameter Store and writes to the snapshots bucket, so no secret or
-AWS credential is stored on the host.
+Terraform sets the whole host up (`db.tf`, `db_bootstrap.sh`): Docker, AWS CLI, this folder installed in
+`/opt/db`, PostgreSQL started by the `postgres-db` systemd service (`docker compose`, data in the `pgdata`
+Docker volume on the encrypted root disk) and the backup cron. The instance role reads the credentials from SSM Parameter
+Store and writes to the snapshots bucket, so no secret or AWS credential is stored on the host.
 
 ## Prerequisites
 
@@ -13,54 +13,46 @@ SSM parameters (`SecureString`, under the Terraform output `ssm_parameter_prefix
 - `/coika/auth_service/db/POSTGRES_PASSWORD`
 - `/coika/auth_service/db/POSTGRES_DB`
 
-## First setup
+## Setup
 
-Reach the host with SSM Session Manager (or SSH through the API host), then:
-
-```bash
-# copy this folder to the host, e.g. from your machine through SSM/SSH
-sudo mkdir -p /opt/db && sudo chown ubuntu: /opt/db
-cd /opt/db
-# put docker-compose.yml, lib.sh, start.sh, backup.sh, restore.sh, settings.env.example here
-cp settings.env.example settings.env     # fill in BACKUP_BUCKET (output db_snapshots_bucket)
-chmod +x start.sh backup.sh restore.sh
-./start.sh
-docker compose ps    # db should become "healthy"
-```
-
-`start.sh` refuses to start if `/data/postgres` is not a mount point, loads the credentials from SSM and
-publishes port 5432 only on the host's private IP. Use `./start.sh` (not a bare `docker compose up`) every
-time you recreate the container; after a reboot Docker restarts it on its own.
-
-Put the same user/password/database in the API's `DATABASE_URL_READER` / `DATABASE_URL_WRITER` secrets,
-using the host's private IP (output `db_private_ip`), e.g. `postgresql://USER:PASS@10.x.x.x:5432/NAME`.
-
-### Hosts created before the data-volume guard
-
-The guard that stops Docker when the volume is not mounted is added at instance creation. On an existing
-host, add it by hand:
+Nothing to do by hand: create the SSM parameters above and run `terraform apply`. On first boot the
+`postgres-db` service runs `start.sh`; if the parameters do not exist yet it retries every 30 seconds, so it
+comes up by itself as soon as you create them.
 
 ```bash
-sudo mountpoint -q /data/postgres || sudo chattr +i /data/postgres   # only while unmounted
-sudo mkdir -p /etc/systemd/system/docker.service.d
-printf '[Unit]\nRequiresMountsFor=/data/postgres\n' | sudo tee /etc/systemd/system/docker.service.d/data-volume.conf
-sudo systemctl daemon-reload
+systemctl status postgres-db      # on the host: "active (exited)" once PostgreSQL has been started
+docker compose -f /opt/db/docker-compose.yml ps    # db should become "healthy"
 ```
+
+`start.sh` loads the credentials from SSM and publishes port 5432 only on the host's private IP. To recreate the container run `sudo systemctl restart
+postgres-db` (or `/opt/db/start.sh`), not a bare `docker compose up`. After a reboot the service runs again.
+
+The API host builds its `DATABASE_URL_*` from the same SSM parameters and the `db/DB_HOST` Terraform publishes,
+so nothing else has to be configured.
+
+### Changing the scripts in this folder
+
+The bootstrap only runs when the instance is created (`user_data` is ignored on purpose, so an edit never
+replaces the host that holds the data). The data lives on the root disk, so replacing the host
+(`terraform apply -replace=aws_instance.database`) deletes it: take a backup first (`/opt/db/backup.sh`) and
+restore it on the new host (see Restore).
+
+For a quick fix without replacing it, edit the file in `/opt/db` on the host.
+
+### Durability
+
+The data is only on the instance's root disk. If the instance is terminated or replaced, the data is gone;
+the S3 dumps (every 6 hours by default) are the recovery path, so you can lose up to that interval of data.
 
 ## Backups
 
-Run a first backup by hand to confirm the instance role works:
+Terraform installs the schedule in `/etc/cron.d/db-backup` (variable `db_backup_cron`, every 6 hours by
+default) and writes the log to `/var/log/db-backup.log`. To check that the instance role works without
+waiting for the next run:
 
 ```bash
-./backup.sh
+/opt/db/backup.sh
 aws s3 ls s3://<BACKUP_BUCKET>/postgres/
-```
-
-Then schedule it (every 6 hours here; the scripts set their own `PATH`, so cron finds the AWS CLI):
-
-```bash
-( crontab -l 2>/dev/null; echo '0 */6 * * * /opt/db/backup.sh >> /var/log/db-backup.log 2>&1' ) | crontab -
-sudo touch /var/log/db-backup.log && sudo chown ubuntu: /var/log/db-backup.log
 ```
 
 Dumps are `pg_dump | gzip` files under `postgres/` in the bucket. The dump is written to a temp file and

@@ -15,7 +15,6 @@ set +a
 
 SSM_PREFIX="${SSM_PREFIX:-/coika/auth_service}"
 BACKUP_PREFIX="${BACKUP_PREFIX:-postgres}"
-DATA_DIR="${DATA_DIR:-/data/postgres}"
 
 # Instance metadata (IMDSv2 is required on these hosts).
 imds() {
