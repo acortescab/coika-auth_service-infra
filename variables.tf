@@ -205,6 +205,12 @@ variable "db_data_mount_path" {
   default     = "/data/postgres"
 }
 
+variable "db_snapshots_retention_days" {
+  description = "Days after which database snapshots (and old versions) in the S3 bucket expire"
+  type        = number
+  default     = 30
+}
+
 variable "db_port" {
   description = "PostgreSQL port the API host may reach on the database host"
   type        = number

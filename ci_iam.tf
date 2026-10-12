@@ -190,6 +190,21 @@ data "aws_iam_policy_document" "ci_apply_core" {
   }
 
   statement {
+    sid = "DbSnapshotsBucket"
+    actions = [
+      "s3:CreateBucket",
+      "s3:DeleteBucket",
+      "s3:ListBucket",
+      "s3:GetBucket*",
+      "s3:PutBucket*",
+      "s3:DeleteBucketPolicy",
+      "s3:Get*Configuration",
+      "s3:Put*Configuration",
+    ]
+    resources = ["arn:aws:s3:::${local.db_snapshots_bucket_name}"]
+  }
+
+  statement {
     sid       = "IamPassRoleToEc2"
     actions   = ["iam:PassRole"]
     resources = ["arn:aws:iam::${local.ci_account_id}:role/${var.project_name}-*"]
@@ -264,6 +279,12 @@ data "aws_iam_policy_document" "ci_boundary" {
     sid       = "InstanceRuntime"
     actions   = ["ssm:*", "ssmmessages:*", "ec2messages:*", "ecr:BatchGetImage", "ecr:BatchCheckLayerAvailability"]
     resources = ["*"]
+  }
+
+  statement {
+    sid       = "DbSnapshotsRuntime"
+    actions   = ["s3:PutObject", "s3:GetObject", "s3:AbortMultipartUpload", "s3:ListBucket", "s3:GetBucketLocation"]
+    resources = ["arn:aws:s3:::${local.db_snapshots_bucket_name}", "arn:aws:s3:::${local.db_snapshots_bucket_name}/*"]
   }
 
   statement {
@@ -402,6 +423,14 @@ data "aws_iam_policy_document" "ci_plan" {
     sid       = "IamReadBoundaryAndOidcProviderPlan"
     actions   = ["iam:GetPolicy", "iam:GetPolicyVersion", "iam:ListPolicyVersions", "iam:GetOpenIDConnectProvider", "iam:ListOpenIDConnectProviders"]
     resources = ["*"]
+  }
+
+  statement {
+    sid     = "DbSnapshotsBucketRead"
+    actions = ["s3:ListBucket", "s3:GetBucket*", "s3:Get*Configuration"]
+    resources = [
+      "arn:aws:s3:::${local.db_snapshots_bucket_name}",
+    ]
   }
 
   statement {

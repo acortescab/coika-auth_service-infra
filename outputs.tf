@@ -33,6 +33,11 @@ output "db_security_group_id" {
   value       = aws_security_group.database.id
 }
 
+output "db_snapshots_bucket" {
+  description = "Name of the S3 bucket for database snapshots"
+  value       = aws_s3_bucket.db_snapshots.bucket
+}
+
 output "private_subnet_id" {
   description = "ID of the private subnet hosting the database"
   value       = aws_subnet.private.id
