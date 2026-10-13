@@ -178,7 +178,7 @@ variable "db_instance_type" {
 variable "db_root_volume_size" {
   description = "Root EBS volume size in GiB for the database host (OS, Docker and the PostgreSQL data live here)"
   type        = number
-  default     = 50
+  default     = 15
 }
 
 variable "db_backup_cron" {
