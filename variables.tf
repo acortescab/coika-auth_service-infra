@@ -139,6 +139,12 @@ variable "github_app_oidc_subjects" {
   ]
 }
 
+variable "github_repository" {
+  description = "GitHub repository (owner/name) of this stack, as in the job_workflow_ref claim; the apply role only trusts its cd.yml workflow on main"
+  type        = string
+  default     = "acortescab/coika-auth_service-infra"
+}
+
 variable "github_plan_environment" {
   description = "GitHub environment whose jobs may assume the read-only plan role (no approvals needed)"
   type        = string

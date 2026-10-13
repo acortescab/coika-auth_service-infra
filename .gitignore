@@ -5,6 +5,7 @@
 crash.log
 crash.*.log
 *.tfvars
+!terraform.tfvars.example
 *.tfvars.json
 override.tf
 override.tf.json
@@ -12,7 +13,6 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
-.terraform.lock.hcl
 
 # Local editor/system files
 .DS_Store

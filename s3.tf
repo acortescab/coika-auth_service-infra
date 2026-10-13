@@ -12,10 +12,9 @@ resource "aws_s3_bucket" "db_snapshots" {
 
   tags = merge(
     {
-      Name        = local.db_snapshots_bucket_name
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = local.db_snapshots_bucket_name
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
@@ -128,10 +127,9 @@ resource "aws_s3_bucket" "db_snapshots_replica" {
 
   tags = merge(
     {
-      Name        = local.db_snapshots_replica_bucket_name
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = local.db_snapshots_replica_bucket_name
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
@@ -265,10 +263,9 @@ resource "aws_iam_role" "db_snapshots_replication" {
 
   tags = merge(
     {
-      Name        = "${var.project_name}-db-snapshots-replication-role${local.iam_name_suffix}"
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = "${var.project_name}-db-snapshots-replication-role${local.iam_name_suffix}"
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
@@ -349,10 +346,9 @@ resource "aws_iam_role" "db_snapshots_replication_reverse" {
 
   tags = merge(
     {
-      Name        = "${var.project_name}-db-snapshots-replication-reverse-role${local.iam_name_suffix}"
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = "${var.project_name}-db-snapshots-replication-reverse-role${local.iam_name_suffix}"
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )

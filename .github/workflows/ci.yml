@@ -1,0 +1,215 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  AWS_DEFAULT_REGION: eu-west-1
+  TF_VAR_aws_region: eu-west-1
+
+jobs:
+  terraform:
+    name: Terraform fmt and validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.15.6
+          terraform_wrapper: false
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive -diff
+
+      - name: Terraform init
+        run: terraform init -backend=false -input=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+  tflint:
+    name: TFLint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
+        with:
+          tflint_version: v0.64.0
+
+      - name: Init TFLint
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: tflint --init
+
+      - name: Run TFLint
+        run: tflint --format compact
+
+  trivy:
+    name: Trivy config scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Report-only until the findings are fixed or accepted with #trivy:ignore:<id>;
+      # then set exit-code to "1" and make the job a required check.
+      - name: Trivy config scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+
+  workflows:
+    name: Lint workflows
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: actionlint
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
+          ./actionlint -color
+
+      - name: zizmor
+        uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        with:
+          advanced-security: false
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # db_bootstrap.sh is a Terraform template (templatefile), so it is skipped.
+      - name: ShellCheck
+        run: shellcheck db/*.sh user_data.sh
+
+  plan:
+    name: Terraform plan
+    # Forks and Dependabot get neither secrets nor OIDC.
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: plan
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.15.6
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Terraform init
+        env:
+          TFSTATE_BUCKET: ${{ vars.TFSTATE_BUCKET }}
+        run: terraform init -backend-config="bucket=$TFSTATE_BUCKET"
+
+      - name: Terraform plan
+        id: plan
+        env:
+          TF_VAR_tfstate_bucket_name: ${{ vars.TFSTATE_BUCKET }}
+          TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+        run: |
+          # Exit codes: 0 no changes, 2 changes, 1 error. Only 1 fails the job.
+          set +e
+          terraform plan -input=false -no-color -lock=false -detailed-exitcode > plan.txt 2>&1
+          code=$?
+          set -e
+          cat plan.txt
+          echo "exitcode=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" -eq 1 ]; then
+            exit 1
+          fi
+
+      - name: Comment plan on PR
+        if: ${{ !cancelled() && steps.plan.outcome != 'skipped' }}
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PLAN_EXIT_CODE: ${{ steps.plan.outputs.exitcode }}
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- terraform-plan -->';
+            const code = process.env.PLAN_EXIT_CODE;
+            const status = code === '0' ? 'No changes' : code === '2' ? 'Changes to apply' : 'Failed';
+            let plan = fs.existsSync('plan.txt') ? fs.readFileSync('plan.txt', 'utf8') : 'No plan output.';
+            const max = 60000 - 1000;
+            if (plan.length > max) {
+              plan = plan.slice(0, max) + '\n... (truncated, see the job log)';
+            }
+            const body = [
+              marker,
+              '### Terraform plan',
+              `**Status**: ${status}`,
+              '',
+              '<details>',
+              '<summary>Show full plan</summary>',
+              '',
+              '```',
+              plan,
+              '```',
+              '',
+              '</details>',
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number, per_page: 100,
+            });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }

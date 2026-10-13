@@ -38,10 +38,9 @@ resource "aws_iam_role" "app_cd" {
 
   tags = merge(
     {
-      Name        = local.app_cd_role_name
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = local.app_cd_role_name
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )

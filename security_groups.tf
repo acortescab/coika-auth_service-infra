@@ -5,10 +5,9 @@ resource "aws_security_group" "ec2_host" {
 
   tags = merge(
     {
-      Name        = "${var.instance_name}-sg"
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = "${var.instance_name}-sg"
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
@@ -45,10 +44,9 @@ resource "aws_security_group" "database" {
 
   tags = merge(
     {
-      Name        = "${var.db_instance_name}-sg"
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = "${var.db_instance_name}-sg"
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )

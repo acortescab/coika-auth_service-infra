@@ -24,10 +24,9 @@ resource "aws_iam_role" "ec2_role" {
 
   tags = merge(
     {
-      Name        = "${var.instance_name}-role${local.iam_name_suffix}"
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = "${var.instance_name}-role${local.iam_name_suffix}"
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
@@ -55,10 +54,9 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 
   tags = merge(
     {
-      Name        = "${var.instance_name}-profile${local.iam_name_suffix}"
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = "${var.instance_name}-profile${local.iam_name_suffix}"
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
@@ -74,10 +72,9 @@ resource "aws_iam_role" "db_role" {
 
   tags = merge(
     {
-      Name        = "${var.db_instance_name}-role${local.iam_name_suffix}"
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = "${var.db_instance_name}-role${local.iam_name_suffix}"
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
@@ -120,10 +117,9 @@ resource "aws_iam_instance_profile" "db_profile" {
 
   tags = merge(
     {
-      Name        = "${var.instance_name}-db-profile${local.iam_name_suffix}"
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = "${var.instance_name}-db-profile${local.iam_name_suffix}"
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
@@ -149,9 +145,8 @@ resource "aws_ssm_parameter" "db_host" {
 
   tags = merge(
     {
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
@@ -164,9 +159,8 @@ resource "aws_ssm_parameter" "db_port" {
 
   tags = merge(
     {
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )

@@ -40,10 +40,9 @@ resource "aws_ecr_repository" "app" {
 
   tags = merge(
     {
-      Name        = var.ecr_repository_name
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = var.ecr_repository_name
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )

@@ -14,7 +14,7 @@ This folder provisions one Ubuntu EC2 host prepared to run Docker workloads with
 
 ## Prerequisites
 
-- Terraform >= 1.5.0
+- Terraform >= 1.10.0 (CI uses 1.15.6)
 - AWS credentials configured for the target account
 - Existing VPC/subnet access in the target region
 
@@ -24,7 +24,7 @@ This folder provisions one Ubuntu EC2 host prepared to run Docker workloads with
 2. Initialize providers:
 
 ```bash
-terraform init
+terraform init -backend-config="bucket=<state-bucket-name>"
 ```
 
 3. Validate formatting and config:
