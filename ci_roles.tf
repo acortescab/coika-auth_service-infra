@@ -1,5 +1,5 @@
 // Roles assumed by GitHub Actions through OIDC. Two roles on purpose:
-//  - plan:  read-only, assumable from pull requests and branches
+//  - plan:  read-only (plus the state lock file), assumable from the "plan" environment and from main
 //  - apply: can change the infrastructure, assumable only from the "production" environment
 //
 // Every role created by this stack carries the permissions boundary below, which caps
@@ -8,7 +8,9 @@
 //
 // Bootstrap: the boundary and the roles are created by the first apply, which must run
 // with other credentials (for example the legacy deploy role or a local admin profile).
-// Later changes to the boundary policy must also be applied with admin credentials.
+// Later changes to the boundary policy, and to this file in general, must also be applied
+// by hand from a workstation with admin credentials: the pipeline fails with AccessDenied
+// on them by design.
 
 data "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
@@ -22,9 +24,24 @@ locals {
   ci_boundary_name = "${local.ci_name_base}-ci-boundary${local.iam_name_suffix}"
   ci_boundary_arn  = "arn:aws:iam::${local.ci_account_id}:policy/${local.ci_boundary_name}"
 
+  // plan:  CI plan job (environment "plan") and CD plan job (no environment, runs on main).
+  // apply: CD apply job only (environment "production"). It must never trust refs/heads/main.
   ci_trust_subjects = {
-    plan  = ["${var.github_oidc_subject_prefix}:environment:${var.github_plan_environment}"]
+    plan = [
+      "${var.github_oidc_subject_prefix}:environment:${var.github_plan_environment}",
+      "${var.github_oidc_subject_prefix}:ref:refs/heads/main",
+    ]
     apply = ["${var.github_oidc_subject_prefix}:environment:${var.github_apply_environment}"]
+  }
+
+  // An environment sub carries no branch, so the apply role also pins the ref and the workflow:
+  // without these, any branch's workflow targeting "production" could get the role once approved.
+  ci_trust_extra_conditions = {
+    plan = {}
+    apply = {
+      "token.actions.githubusercontent.com:ref"              = ["refs/heads/main"]
+      "token.actions.githubusercontent.com:job_workflow_ref" = ["${var.github_repository}/.github/workflows/cd.yml@refs/heads/main"]
+    }
   }
 }
 
@@ -46,9 +63,19 @@ data "aws_iam_policy_document" "ci_assume_role" {
     }
 
     condition {
-      test     = "StringLike"
+      test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
       values   = each.value
+    }
+
+    dynamic "condition" {
+      for_each = local.ci_trust_extra_conditions[each.key]
+
+      content {
+        test     = "StringEquals"
+        variable = condition.key
+        values   = condition.value
+      }
     }
   }
 }
@@ -61,12 +88,15 @@ data "aws_iam_policy_document" "ci_apply_core" {
     resources = ["arn:aws:s3:::${var.tfstate_bucket_name}"]
   }
 
+  // The state and its native S3 lock file (use_lockfile).
   statement {
     sid     = "TerraformStateObjects"
-    actions = ["s3:GetObject", "s3:PutObject"]
+    actions = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
     resources = [
       "arn:aws:s3:::${var.tfstate_bucket_name}/terraform.tfstate",
+      "arn:aws:s3:::${var.tfstate_bucket_name}/terraform.tfstate.tflock",
       "arn:aws:s3:::${var.tfstate_bucket_name}/regions/*/terraform.tfstate",
+      "arn:aws:s3:::${var.tfstate_bucket_name}/regions/*/terraform.tfstate.tflock",
     ]
   }
 
@@ -296,7 +326,7 @@ data "aws_iam_policy_document" "ci_apply_core" {
 data "aws_iam_policy_document" "ci_boundary" {
   statement {
     sid       = "TerraformState"
-    actions   = ["s3:ListBucket", "s3:GetObject", "s3:PutObject"]
+    actions   = ["s3:ListBucket", "s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
     resources = ["arn:aws:s3:::${var.tfstate_bucket_name}", "arn:aws:s3:::${var.tfstate_bucket_name}/*"]
   }
 
@@ -388,10 +418,9 @@ resource "aws_iam_policy" "ci_boundary" {
 
   tags = merge(
     {
-      Name        = local.ci_boundary_name
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = local.ci_boundary_name
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
@@ -407,10 +436,9 @@ resource "aws_iam_role" "ci" {
 
   tags = merge(
     {
-      Name        = "${local.ci_name_base}-infra-ci_${each.key}-role${local.iam_name_suffix}"
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = "${local.ci_name_base}-infra-ci_${each.key}-role${local.iam_name_suffix}"
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
@@ -430,6 +458,16 @@ data "aws_iam_policy_document" "ci_plan" {
     resources = [
       "arn:aws:s3:::${var.tfstate_bucket_name}/terraform.tfstate",
       "arn:aws:s3:::${var.tfstate_bucket_name}/regions/*/terraform.tfstate",
+    ]
+  }
+
+  // The plan role may only take and release the lock, never write the state itself.
+  statement {
+    sid     = "TerraformStateLock"
+    actions = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    resources = [
+      "arn:aws:s3:::${var.tfstate_bucket_name}/terraform.tfstate.tflock",
+      "arn:aws:s3:::${var.tfstate_bucket_name}/regions/*/terraform.tfstate.tflock",
     ]
   }
 

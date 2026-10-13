@@ -13,10 +13,9 @@ resource "aws_key_pair" "docker_host" {
 
   tags = merge(
     {
-      Name        = var.key_name
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = var.key_name
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
@@ -39,10 +38,9 @@ resource "aws_instance" "docker_host" {
 
     tags = merge(
       {
-        Name        = "${var.instance_name}-so"
-        Environment = var.environment
-        Project     = var.project_name
-        ManagedBy   = "terraform"
+        Name      = "${var.instance_name}-so"
+        Project   = var.project_name
+        ManagedBy = "Terraform"
       },
       var.extra_tags,
     )
@@ -58,10 +56,9 @@ resource "aws_instance" "docker_host" {
 
   tags = merge(
     {
-      Name        = var.instance_name
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = var.instance_name
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
@@ -76,10 +73,9 @@ resource "aws_eip" "docker_host" {
 
   tags = merge(
     {
-      Name        = "${var.instance_name}-eip"
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = "${var.instance_name}-eip"
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )

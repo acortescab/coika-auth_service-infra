@@ -1,0 +1,26 @@
+# Copy to terraform.tfvars (ignored by git) and adjust. Every variable has a default;
+# these are the ones usually set per environment. Do not put secrets here.
+
+aws_region   = "eu-west-1"
+environment  = "dev"
+project_name = "coika-auth_service"
+
+instance_name = "coika-auth_service-instance"
+instance_type = "t3.micro"
+
+root_volume_size = 30
+root_volume_type = "gp3"
+
+# Restrict SSH to your own address; never leave 0.0.0.0/0 outside development.
+ssh_allowed_cidr  = "203.0.113.10/32"
+app_ingress_cidrs = ["0.0.0.0/0"]
+key_name          = "coika-auth_service-kp"
+
+# Public key of the key pair Terraform creates (a public key is not a secret).
+# ssh_public_key = "ssh-ed25519 AAAA..."
+
+# State bucket, same as passed to `terraform init -backend-config="bucket=..."`.
+tfstate_bucket_name = "<state-bucket-name>"
+
+# GitHub repository of this stack (the apply role trusts only its cd.yml on main).
+github_repository = "acortescab/coika-auth_service-infra"

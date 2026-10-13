@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.5.0"
+  required_version = ">= 1.10.0"
 
   required_providers {
     aws = {
@@ -8,11 +8,14 @@ terraform {
     }
   }
 
-  // Remote state is stored in S3 so the stack can be shared safely.
+  // Remote state in S3 with native locking (use_lockfile, no DynamoDB table).
+  // The bucket is not in the code (backend blocks cannot use variables); pass it at init:
+  //   terraform init -backend-config="bucket=<bucket>"
+  // The state bucket is created by hand and is outside this stack.
   backend "s3" {
-    bucket  = "coika-auth-tfstate-s3-290294660813-eu-west-1-an"
-    key     = "terraform.tfstate"
-    region  = "eu-west-1"
-    encrypt = true
+    key          = "terraform.tfstate"
+    region       = "eu-west-1"
+    encrypt      = true
+    use_lockfile = true
   }
 }

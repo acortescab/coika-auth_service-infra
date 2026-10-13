@@ -54,12 +54,12 @@ output "ecr_repository_url" {
 }
 
 output "ci_plan_role_arn" {
-  description = "Role for the AWS_PLAN_ROLE_TO_ASSUME GitHub secret"
+  description = "Role for the AWS_PLAN_ROLE_ARN GitHub variable"
   value       = aws_iam_role.ci["plan"].arn
 }
 
 output "ci_apply_role_arn" {
-  description = "Role for the AWS_ROLE_TO_ASSUME GitHub secret"
+  description = "Role for the AWS_ROLE_ARN GitHub variable (apply)"
   value       = aws_iam_role.ci["apply"].arn
 }
 

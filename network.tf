@@ -19,10 +19,9 @@ resource "aws_subnet" "private" {
 
   tags = merge(
     {
-      Name        = "${var.instance_name}-private-subnet"
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = "${var.instance_name}-private-subnet"
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
@@ -35,10 +34,9 @@ resource "aws_eip" "nat" {
 
   tags = merge(
     {
-      Name        = "${var.instance_name}-nat-eip"
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = "${var.instance_name}-nat-eip"
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
@@ -52,10 +50,9 @@ resource "aws_nat_gateway" "private" {
 
   tags = merge(
     {
-      Name        = "${var.instance_name}-nat"
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = "${var.instance_name}-nat"
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
@@ -66,10 +63,9 @@ resource "aws_route_table" "private" {
 
   tags = merge(
     {
-      Name        = "${var.instance_name}-private-rt"
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = "${var.instance_name}-private-rt"
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )

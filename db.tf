@@ -17,10 +17,9 @@ resource "aws_instance" "database" {
 
     tags = merge(
       {
-        Name        = "${var.db_instance_name}-so"
-        Environment = var.environment
-        Project     = var.project_name
-        ManagedBy   = "terraform"
+        Name      = "${var.db_instance_name}-so"
+        Project   = var.project_name
+        ManagedBy = "Terraform"
       },
       var.extra_tags,
     )
@@ -55,10 +54,9 @@ resource "aws_instance" "database" {
 
   tags = merge(
     {
-      Name        = var.db_instance_name
-      Environment = var.environment
-      Project     = var.project_name
-      ManagedBy   = "terraform"
+      Name      = var.db_instance_name
+      Project   = var.project_name
+      ManagedBy = "Terraform"
     },
     var.extra_tags,
   )
