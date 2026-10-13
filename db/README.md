@@ -68,6 +68,8 @@ docker stop api            # on the API host: nothing should write during the re
 ```
 
 It asks you to type the database name, because it drops the `public` schema before loading the dump.
+For automation (the failover state machine) use `./restore.sh --yes --if-empty`: no prompt, and it does
+nothing if the database already has tables, so it never overwrites data written after a previous restore.
 
 ### Restore in the DR region
 
